@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: infra for ecs test
+
+Resources:
+  #===========================================
+  # VPC
+  #===========================================
+  ECSVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name
+          Value: ECSVPC
+  
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ECSVPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: '10.0.0.0/20'
+      MapPublicIpOnLaunch: true
+      Tags: 
+        - Key: Name
+          Value: ECS-Public-01
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ECSVPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: '10.0.32.0/20'
+      MapPublicIpOnLaunch: true
+      Tags: 
+        - Key: Name
+          Value: ECS-Public-02
+
+  #===========================================
+  # InternetGateway
+  #===========================================
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref ECSVPC
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ECSVPC
+  
+  RouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref RouteTable
+
+  RouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2
+      RouteTableId: !Ref RouteTable
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+
+  #===========================================
+  # ECSリポジトリー
+  #===========================================
+  BookApiRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: book-api
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs-tasks.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+            - Effect: Allow
+              Action:
+                # ECS Tasks to download images from ECR
+                - 'ecr:GetAuthorizationToken'
+                - 'ecr:BatchCheckLayerAvailability'
+                - 'ecr:GetDownloadUrlForLayer'
+                - 'ecr:BatchGetImage'
+                # ECS tasks to upload logs to CloudWatch
+                - 'logs:CreateLogStream'
+                - 'logs:PutLogEvents'
+              Resource: '*'
+
+  #===========================================
+  # ECSクラスタ
+  #===========================================
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: '<アプリ名>'
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group from LoadBalancer to service on book-api ecs
+      VpcId: !Ref ECSVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+  
+  ContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group book-api ecs
+      VpcId: !Ref ECSVPC
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          IpProtocol: -1
+
+  #===========================================
+  # ロードバランサー
+  #===========================================
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: book-api-alb
+      Subnets:
+        - !Ref Subnet1
+        - !Ref Subnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DefaultTargetGroup
+  
+  DefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: default
+      VpcId: !Ref ECSVPC
+      Protocol: HTTP
+      Port: 80
+
+Outputs:
+  ECSVPC:
+    Description: 'VPC for ecs demo'
+    Value: !Ref ECSVPC
+    Export:
+      Name: ECSVPC
+  
+  Subnet1:
+    Description: 'public subnet1 on AZ1'
+    Value: !Ref Subnet1
+    Export:
+      Name: Subnet1
+
+  Subnet2:
+    Description: 'public sunbet2 on AZ2'
+    Value: !Ref Subnet2
+    Export:
+      Name: Subnet2
+
+  ECSTaskExecutionRole:
+    Description: ECS Task Execution Role
+    Value: !GetAtt 'ECSTaskExecutionRole.Arn'
+    Export:
+      Name: ECSTaskExecutionRole
+  
+  Listener:
+    Description: listener port 80
+    Value: !Ref LoadBalancerListener
+    Export:
+      Name: Listener
+  
+  Cluster:
+    Description: book api cluster
+    Value: !Ref ECSCluster
+    Export:
+      Name: ECSCluster
+
+  ContainerSecurityGroup:
+    Description: container security group
+    Value: !Ref ContainerSecurityGroup
+    Export:
+      Name: ContainerSecurityGroup
+
+  ECSTaskExecutionRole:
+    Description: ecs task execution role
+    Value: !Ref ECSTaskExecutionRole
+    Export:
+      Name: ECSTaskExecutionRole
+  

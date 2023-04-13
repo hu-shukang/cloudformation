@@ -1,0 +1,328 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  employee-manager-api
+
+  Sample SAM Template for employee-manager-api
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Parameters:
+  Stage:
+    Description: 'stage name when deploy'
+    Type: String
+    Default: Dev
+  ApplicationName:
+    Description: 'application name'
+    Type: String
+    Default: EmployeeManagerAPI
+
+Globals:
+  Function:
+    Timeout: 100
+    Runtime: nodejs14.x
+    MemorySize: 128
+    Handler: index.handler
+    Layers:
+      - !Ref APISharedLayer
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        APPLICATION_NAME: !Ref ApplicationName
+
+Resources:
+  #==============================================================
+  # DynamoDB定義
+  #==============================================================
+  MasterTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ApplicationName}-${Stage}-MasterTable'
+      AttributeDefinitions:
+        - AttributeName: category
+          AttributeType: S
+        - AttributeName: prop
+          AttributeType: S
+      KeySchema:
+        - AttributeName: category
+          KeyType: HASH
+        - AttributeName: prop
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+  EmployeeTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ApplicationName}-${Stage}-EmployeeTable'
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: prop
+          AttributeType: S
+        - AttributeName: bossId
+          AttributeType: S
+        - AttributeName: hash
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: submit
+          AttributeType: S
+        - AttributeName: type
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: prop
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      GlobalSecondaryIndexes:
+        - IndexName: boss_employee_index
+          KeySchema:
+            - AttributeName: bossId
+              KeyType: HASH
+            - AttributeName: id
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        - IndexName: hash_index
+          KeySchema:
+            - AttributeName: hash
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        - IndexName: status_index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        - IndexName: submit_index
+          KeySchema:
+            - AttributeName: submit
+              KeyType: HASH
+            - AttributeName: type
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+  #==============================================================
+  # Layer定義
+  #==============================================================
+  APISharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${ApplicationName}-${Stage}-APISharedLayer'
+      Description: !Sub '${ApplicationName}-${Stage}-APISharedLayer'
+      ContentUri: src/layer/APISharedLayer
+      CompatibleRuntimes:
+        - nodejs14.x
+      RetentionPolicy: Retain
+  #==============================================================
+  # EmployeeManagerAPI定義
+  #==============================================================
+  EmployeeManagerAPI:
+    Type: AWS::Serverless::Api
+    Name: !Sub '${ApplicationName}-API'
+    Properties:
+      StageName: !Sub ${Stage}
+  #==============================================================
+  # Lambda定義 (Manager)
+  #==============================================================
+  ManagerEmployeeAddFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-ManagerEmployeeAddFunction'
+      CodeUri: src/function/manager/employee/add
+      Description: 'add employee by manager'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /manager/employee
+            Method: post
+            RestApiId: !Ref EmployeeManagerAPI
+  ManagerEmployeeUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-ManagerEmployeeUpdateFunction'
+      CodeUri: src/function/manager/employee/update
+      Description: 'update employee by manager'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /manager/employee/{id}
+            Method: put
+            RestApiId: !Ref EmployeeManagerAPI
+  ManagerEmployeeDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-ManagerEmployeeDeleteFunction'
+      CodeUri: src/function/manager/employee/delete
+      Description: 'delete employee by manager'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /manager/employee/{id}
+            Method: delete
+            RestApiId: !Ref EmployeeManagerAPI
+  ManagerSubmitListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-ManagerSubmitListFunction'
+      CodeUri: src/function/manager/submit/list
+      Description: 'get submit list by yyyymm'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /manager/submit/{date}
+            Method: get
+            RestApiId: !Ref EmployeeManagerAPI
+  #==============================================================
+  # Lambda定義 (Employee)
+  #==============================================================
+  EmployeeWorkRosterAddFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeWorkRosterAddFunction'
+      CodeUri: src/function/employee/work-roster/add
+      Description: 'add work-roster'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/work-roster
+            Method: post
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeWorkRosterGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeWorkRosterGetFunction'
+      CodeUri: src/function/employee/work-roster/get
+      Description: 'get work-roster'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/work-roster/{date}
+            Method: get
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeWeeklyReportAddFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeWeeklyReportAddFunction'
+      CodeUri: src/function/employee/weekly-report/add
+      Description: 'add weekly-report'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/weekly-report
+            Method: post
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeWeeklyReportDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeWeeklyReportDeleteFunction'
+      CodeUri: src/function/employee/weekly-report/delete
+      Description: 'delete weekly-report'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/weekly-report/{start}/{end}
+            Method: delete
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeWeeklyReportUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeWeeklyReportUpdateFunction'
+      CodeUri: src/function/employee/weekly-report/update
+      Description: 'update weekly-report'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/weekly-report/{start}/{end}
+            Method: put
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeWeeklyReportGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeWeeklyReportGetFunction'
+      CodeUri: src/function/employee/weekly-report/get
+      Description: 'get weekly-report'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/weekly-report/{start}/{end}
+            Method: get
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeWeeklyReportListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeWeeklyReportListFunction'
+      CodeUri: src/function/employee/weekly-report/list
+      Description: 'list weekly-report'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/weekly-report
+            Method: get
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeSubmitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeSubmitFunction'
+      CodeUri: src/function/employee/submit
+      Description: 'submit report'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/submit
+            Method: post
+            RestApiId: !Ref EmployeeManagerAPI
+  EmployeeUnsubmitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ApplicationName}-${Stage}-EmployeeUnsubmitFunction'
+      CodeUri: src/function/employee/unsubmit
+      Description: 'unsubmit report'
+      Role: arn:aws:iam::146114061358:role/LambdaRole
+      Events:
+        api:
+          Type: Api
+          Properties:
+            Path: /employee/unsubmit
+            Method: post
+            RestApiId: !Ref EmployeeManagerAPI

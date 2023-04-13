@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: api for ecs test
+
+Resources:
+  #===========================================
+  # ECSタスク定義
+  #===========================================
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: apis
+      RuntimePlatform:
+        CpuArchitecture: ARM64
+        OperatingSystemFamily: LINUX
+      Cpu: 1024
+      Memory: 2048
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !ImportValue ECSTaskExecutionRole
+      ContainerDefinitions:
+        - Name: bookapi
+          Image: 146114061358.dkr.ecr.ap-northeast-1.amazonaws.com/book-api:latest
+          Cpu: 1024
+          Memory: 2048
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+  
+  #===========================================
+  # ECSサービス
+  #===========================================
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: ListenerRule
+    Properties:
+      ServiceName: book-api-service
+      TaskDefinition: !Ref TaskDefinition
+      Cluster: !ImportValue ECSCluster
+      LaunchType: FARGATE
+      DesiredCount: 2
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 70
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !ImportValue Subnet1
+            - !ImportValue Subnet2
+          SecurityGroups:
+            - !ImportValue ContainerSecurityGroup
+      LoadBalancers:
+        - ContainerName: bookapi
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
+  
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: book-api-tg
+      VpcId: !ImportValue ECSVPC
+      Port: 80
+      Protocol: HTTP
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /book-api/stat
+      HealthCheckProtocol: HTTP
+      HealthyThresholdCount: 10
+      TargetType: ip
+  
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !ImportValue Listener
+      Priority: 2
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /book-api/*
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward

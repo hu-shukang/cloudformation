@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "employee-manager-api"
+s3_bucket = "hsk-code"
+s3_prefix = "employee-manager-api"
+region = "ap-northeast-1"
+confirm_changeset = false
+beta_features = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = false
+image_repositories = []
