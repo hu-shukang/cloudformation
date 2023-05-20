@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: common waf
+
+Parameters:
+  BucketName:
+    Description: bucket name
+    Type: String
+  LoadBalancerDNSName:
+    Description: LoadBalancer DNSName
+    Type: String
+
+Resources:
+  AttendanceBucketOAI:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: OAI for AttendanceBucket
+  AttendanceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: attendance-static
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource: arn:aws:s3:::attendance-static/*
+            Principal:
+              CanonicalUser: !GetAtt 'AttendanceBucketOAI.S3CanonicalUserId'
+  CommonWebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      DefaultAction:
+        Allow: {}
+      Description: 'Common Web ACL'
+      Name: 'CommonWebACL'
+      Scope: 'CLOUDFRONT'
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: 'AttendanceWebACLMetric'
+        SampledRequestsEnabled: true
+      Rules:
+        - Name: AWSManagedRulesAmazonIpReputationList
+          Priority: 0
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: 'AWS'
+              Name: 'AWSManagedRulesAmazonIpReputationList'
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAmazonIpReputationList
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: 'AWS'
+              Name: 'AWSManagedRulesCommonRuleSet'
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSet
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: 'AWS'
+              Name: 'AWSManagedRulesKnownBadInputsRuleSet'
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSet
+
+  # Cloudfront
+  AttendanceCloudFront:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: Attendance
+        WebACLId: !GetAtt CommonWebACL.Arn
+        Origins:
+          - DomainName: !Sub '${BucketName}.s3.ap-northeast-1.amazonaws.com'
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${AttendanceBucketOAI}'
+          - DomainName: !Ref LoadBalancerDNSName
+            Id: LBOrigin
+            CustomOriginConfig:
+              HTTPPort: 80
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId: LBOrigin
+          ViewerProtocolPolicy: allow-all
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: 'all'
+            Headers:
+              - Accept
+              - Authorization
+              - Referer
+              - Origin
+        CacheBehaviors:
+          - TargetOriginId: S3Origin
+            PathPattern: /public/*
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: 'none'
+        Enabled: 'true'

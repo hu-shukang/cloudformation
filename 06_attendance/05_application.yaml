@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: network for attendance application
+
+Resources:
+  # ECSタスク定義
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: apis
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      Cpu: 4096 # 2vCPU * 2
+      Memory: 8192 # 4GB * 2
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !ImportValue ECSTaskExecutionRole
+      ContainerDefinitions:
+        - Name: attendance
+          Image: 146114061358.dkr.ecr.ap-northeast-1.amazonaws.com/attendance:latest
+          Cpu: 2048 # 2vCPU
+          Memory: 4096 # 4GB
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+  
+  # ECSサービス
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: ListenerRule
+    Properties:
+      ServiceName: attendance-service
+      TaskDefinition: !Ref TaskDefinition
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      DesiredCount: 2
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !ImportValue AttendancePublicSubnet1
+            - !ImportValue AttendancePublicSubnet2
+          SecurityGroups:
+            - !ImportValue ContainerSecurityGroup
+      LoadBalancers:
+        - ContainerName: attendance
+          ContainerPort: 8080
+          TargetGroupArn: !ImportValue AttendanceTargetGroup
