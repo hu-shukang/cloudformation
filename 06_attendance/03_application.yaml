@@ -1,6 +1,16 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: network for attendance application
 
+Parameters:
+  ProjectName:
+    Description: project name
+    Type: String
+    Default: Attendance
+  ContainerImage:
+    Description: container image
+    Type: String
+    Default: 146114061358.dkr.ecr.ap-northeast-1.amazonaws.com/attendance:latest
+
 Resources:
   # ECSタスク定義
   TaskDefinition:
@@ -17,8 +27,8 @@ Resources:
         - FARGATE
       ExecutionRoleArn: !ImportValue ECSTaskExecutionRole
       ContainerDefinitions:
-        - Name: attendance
-          Image: 146114061358.dkr.ecr.ap-northeast-1.amazonaws.com/attendance:latest
+        - Name: !Ref ProjectName
+          Image: !Ref ContainerImage
           Cpu: 2048 # 2vCPU
           Memory: 4096 # 4GB
           PortMappings:
@@ -28,11 +38,10 @@ Resources:
   # ECSサービス
   Service:
     Type: AWS::ECS::Service
-    DependsOn: ListenerRule
     Properties:
-      ServiceName: attendance-service
+      ServiceName: !Sub '${ProjectName}-Service'
+      Cluster: !ImportValue AttendanceECSCluster
       TaskDefinition: !Ref TaskDefinition
-      Cluster: !Ref ECSCluster
       LaunchType: FARGATE
       DesiredCount: 2
       NetworkConfiguration:
@@ -44,6 +53,6 @@ Resources:
           SecurityGroups:
             - !ImportValue ContainerSecurityGroup
       LoadBalancers:
-        - ContainerName: attendance
+        - ContainerName: !Ref ProjectName
           ContainerPort: 8080
           TargetGroupArn: !ImportValue AttendanceTargetGroup

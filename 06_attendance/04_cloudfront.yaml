@@ -2,41 +2,58 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: common waf
 
 Parameters:
-  BucketName:
-    Description: bucket name
+  ProjectName:
+    Description: project name
     Type: String
+    Default: Attendance
+  BucketName:
+    Description: The name for bucket who use to save static resources
+    Type: String
+    Default: attendance-static
   LoadBalancerDNSName:
     Description: LoadBalancer DNSName
     Type: String
+  StaticURLPath:
+    Description: The url path for access s3 bucket
+    Type: String
+    Default: /public/*
 
 Resources:
-  AttendanceBucketOAI:
+  # =====================================
+  # S3に対するアクセスコントロール
+  # =====================================
+  BucketOAI:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: OAI for AttendanceBucket
-  AttendanceBucketPolicy:
+        Comment: !Sub 'OAI for ${BucketName} Bucket'
+
+  BucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: attendance-static
+      Bucket: !Ref BucketName
       PolicyDocument:
         Statement:
           - Action: s3:GetObject
             Effect: Allow
-            Resource: arn:aws:s3:::attendance-static/*
+            Resource: !Sub 'arn:aws:s3:::${BucketName}/*'
             Principal:
-              CanonicalUser: !GetAtt 'AttendanceBucketOAI.S3CanonicalUserId'
-  CommonWebACL:
+              CanonicalUser: !GetAtt 'BucketOAI.S3CanonicalUserId'
+
+  # =====================================
+  # Web Application Firewall
+  # =====================================
+  WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
       DefaultAction:
         Allow: {}
-      Description: 'Common Web ACL'
-      Name: 'CommonWebACL'
+      Description: 'Web ACL'
+      Name: !Sub '${ProjectName}-WebACL'
       Scope: 'CLOUDFRONT'
       VisibilityConfig:
         CloudWatchMetricsEnabled: true
-        MetricName: 'AttendanceWebACLMetric'
+        MetricName: !Sub '${ProjectName}-WebACL-Metric'
         SampledRequestsEnabled: true
       Rules:
         - Name: AWSManagedRulesAmazonIpReputationList
@@ -76,18 +93,20 @@ Resources:
             CloudWatchMetricsEnabled: true
             MetricName: AWSManagedRulesKnownBadInputsRuleSet
 
-  # Cloudfront
-  AttendanceCloudFront:
+  # =====================================
+  # CloudFront
+  # =====================================
+  CloudFront:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
-        Comment: Attendance
-        WebACLId: !GetAtt CommonWebACL.Arn
+        Comment: !Ref ProjectName
+        WebACLId: !GetAtt WebACL.Arn
         Origins:
           - DomainName: !Sub '${BucketName}.s3.ap-northeast-1.amazonaws.com'
             Id: S3Origin
             S3OriginConfig:
-              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${AttendanceBucketOAI}'
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${BucketOAI}'
           - DomainName: !Ref LoadBalancerDNSName
             Id: LBOrigin
             CustomOriginConfig:
@@ -107,7 +126,7 @@ Resources:
               - Origin
         CacheBehaviors:
           - TargetOriginId: S3Origin
-            PathPattern: /public/*
+            PathPattern: !Ref StaticURLPath
             ViewerProtocolPolicy: allow-all
             ForwardedValues:
               QueryString: false
