@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CodeCommit, CodeBuild, and CodePipeline in AWS SAM
+
+Parameters:
+  CodeCommitRepository:
+    Type: String
+  DeployBucket:
+    Type: String
+  Env:
+    Type: String
+  BranchName:
+    Type: String
+  ProjectName:
+    Type: String
+  ActionRoleArn:
+    Type: String
+  EventBridgeForCodepipelineRoleArn:
+    Type: String
+
+Resources:
+  CodeCommitEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-CodeCommitEventRule-${Env}'
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - 'CodeCommit Repository State Change'
+        resources:
+          - !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepository}'
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - !Ref BranchName
+      Targets:
+        - Id: !Sub '${ProjectName}-CodePipelineTarget-${Env}'
+          Arn: !Ref CodePipeline
+          RoleArn: !Ref EventBridgeForCodepipelineRoleArn
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-CodeBuildProject-${Env}'
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        PrivilegedMode: false
+        Image: aws/codebuild/standard:5.0
+        EnvironmentVariables:
+          - Name: Env
+            Value: !Ref Env
+          - Name: DeployBucket
+            Value: !Ref DeployBucket
+          - Name: BranchName
+            Value: !Ref BranchName
+      ServiceRole: !Ref ActionRoleArn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: "buildspec.yaml"
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${Env}'
+      RoleArn: !Ref ActionRoleArn
+      ArtifactStore:
+        Location: !Ref DeployBucket
+        Type: S3
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: !Ref CodeCommitRepository
+                BranchName: !Ref BranchName
+                PollForSourceChange: false
+              OutputArtifacts:
+                - Name: SourceZip
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceZip
+              OutputArtifacts:
+                - Name: BuiltZip
+        - Name: Deploy
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: !Sub '${ProjectName}-ChangeSet-${Env}'
+                StackName: !Sub '${ProjectName}-Stack-${Env}'
+                Capabilities: CAPABILITY_IAM
+                TemplatePath: BuiltZip::template-output.yaml
+                TemplateConfiguration: !Sub "BuiltZip::template-parameter-${Env}.json"
+                RoleArn: !Ref ActionRoleArn
+              InputArtifacts:
+                - Name: BuiltZip
+              OutputArtifacts:
+                - Name: ChangeSet
+              RunOrder: 1
+            - Name: ExecuteChangeSet
+              InputArtifacts:
+                - Name: ChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: !Sub '${ProjectName}-ChangeSet-${Env}'
+                StackName: !Sub '${ProjectName}-Stack-${Env}'
+              RunOrder: 2
