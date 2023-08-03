@@ -85,7 +85,7 @@ Resources:
               Configuration:
                 RepositoryName: !Ref CodeCommitRepository
                 BranchName: !Ref BranchName
-                PollForSourceChange: false
+                PollForSourceChanges: false
               OutputArtifacts:
                 - Name: SourceZip
         - Name: Build
