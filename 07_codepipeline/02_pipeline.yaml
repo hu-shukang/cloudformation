@@ -123,6 +123,16 @@ Resources:
               OutputArtifacts:
                 - Name: ChangeSet
               RunOrder: 1
+            # - Name: Approval
+            #   ActionTypeId:
+            #     Category: Approval
+            #     Owner: AWS
+            #     Version: 1
+            #     Provider: Manual
+            #   Configuration:
+            #     ExternalEntityLink: https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1
+            #     CustomData: Please review changeset
+            #   RunOrder: 2
             - Name: ExecuteChangeSet
               InputArtifacts:
                 - Name: ChangeSet
