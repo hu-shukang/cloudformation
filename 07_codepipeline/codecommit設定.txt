@@ -16,9 +16,8 @@ Default output format [None]: json
 region = ap-northeast-1
 output = json
 
-
 [profile （任意のプロファイル名）]
-role_arn = arn:aws:iam::（個別環境のAWSアカウントID）:role/DevAccessRole
+role_arn = （RoleのArn）
 role_session_name = （自分のIAMの名前）
 source_profile = aws-soe-dev
 region = ap-northeast-1
@@ -28,5 +27,4 @@ pip install git-remote-codecommit
 
 6. 任意のフォルダに移動し、下記コマンドでgitリポジトリをローカルに引き込む。
 git clone codecommit::ap-northeast-1://（プロファイル名）@（リポジトリ名）
-（例）git clone codecommit::ap-northeast-1://innovation-soe-dev@temporary-hap-native
-※別のawsアカウント上のgitリポジトリを引き込む場合は手順4で、profileを追加していただき、手順8で指定しているプロファイルを追加したプロファイルに変更してください。
+（例）git clone codecommit::ap-northeast-1://（プロファイル名）@（リポジトリ名）
