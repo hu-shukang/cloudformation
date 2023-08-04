@@ -1,0 +1,32 @@
+1. AWS CLIのインストール
+https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+2. ターミナルを開いて下記コマンドを実行し、設定を行う。
+aws configure ―profile aws-soe-dev
+AWS Access Key ID [None]: （連携されたアクセスキー）
+AWS Secret Access Key [None]: （連携されたシークレットアクセスキー）
+Default region name [None]: ap-northeast-1
+Default output format [None]: json
+
+3. ~/.awsフォルダ内に「config」「credentials」の２ファイルができていることを確認する。
+（※windowsの場合は各ユーザのフォルダ配下に.awsフォルダがある）
+
+4.「config」を編集する（vi configなど）。末尾に下記を追加する。
+[profile aws-soe-dev]
+region = ap-northeast-1
+output = json
+
+
+[profile （任意のプロファイル名）]
+role_arn = arn:aws:iam::（個別環境のAWSアカウントID）:role/DevAccessRole
+role_session_name = （自分のIAMの名前）
+source_profile = aws-soe-dev
+region = ap-northeast-1
+
+5. 下記コマンドを実行し、git-remote-codecommitをインストール
+pip install git-remote-codecommit
+
+6. 任意のフォルダに移動し、下記コマンドでgitリポジトリをローカルに引き込む。
+git clone codecommit::ap-northeast-1://（プロファイル名）@（リポジトリ名）
+（例）git clone codecommit::ap-northeast-1://innovation-soe-dev@temporary-hap-native
+※別のawsアカウント上のgitリポジトリを引き込む場合は手順4で、profileを追加していただき、手順8で指定しているプロファイルを追加したプロファイルに変更してください。
