@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  ResourceBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: your-bucket-name
+
+  OriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'Origin access identity for CloudFront distribution.'
+
+  BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref MyS3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'Allow CloudFront Origin Access Identity'
+            Effect: 'Allow'
+            Principal:
+              AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${OriginAccessIdentity}
+            Action: 's3:GetObject'
+            Resource: !Sub arn:aws:s3:::${ResourceBucket}/*
+
+  MyCloudFrontDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt ResourceBucket.DomainName
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${OriginAccessIdentity}
+          - DomainName: your-apigateway-domain
+            Id: ApiGatewayOrigin
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: 'https-only'
+        Enabled: true
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - PUT
+            - POST
+        CacheBehaviors:
+          - PathPattern: '/api/*'
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+          - PathPattern: '/resources/*'
+            TargetOriginId: S3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - PUT
+              - POST
+        Comment: 'My CloudFront Distribution with S3 and API Gateway Origins'
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
