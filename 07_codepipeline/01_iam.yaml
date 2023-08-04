@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: The Role for CodePipeline
 Resources:
   CodePipelineRole:
@@ -6,7 +6,7 @@ Resources:
     Properties:
       RoleName: CodePipelineRole
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -24,20 +24,20 @@ Resources:
       Policies:
         - PolicyName: CodePipelineAccess
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - codecommit:*
                   - codebuild:*
                   - s3:*
-                Resource: '*'
+                Resource: "*"
   EventBridgeForCodepipelineRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: EventBridgeForCodepipelineRole
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -46,16 +46,16 @@ Resources:
       Policies:
         - PolicyName: TriggerPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action: codepipeline:StartPipelineExecution
-                Resource: '*'
+                Resource: "*"
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -66,17 +66,45 @@ Resources:
       Policies:
         - PolicyName: LambdaExecutionPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:*
-                  - logs:*
-                  - sqs:*
-                  - sns:*
-                  - dynamodb:*
-                  - lambda:*
-                  - ssm:*
-                  - secretsmanager:*
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectAttributes
+                  - s3:ListBucket
+                  - s3:DeleteObject
+                  - s3:PutBucketNotification
+                  - s3:PutObjectTagging
+                  - s3:GetObjectTagging
+                  - s3:DeleteObjectTagging
                 Resource: "*"
-
+              - Effect: Allow
+                Action:
+                  - logs:*
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:*
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sqs:*
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ssm:*
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: "*"
