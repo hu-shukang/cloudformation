@@ -39,7 +39,7 @@ Resources:
             - !Ref BranchName
       Targets:
         - Id: !Sub '${ProjectName}-CodePipelineTarget-${Env}'
-          Arn: !Ref CodePipeline
+          Arn: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}'
           RoleArn: !Ref EventBridgeForCodepipelineRoleArn
 
   CodeBuildProject:

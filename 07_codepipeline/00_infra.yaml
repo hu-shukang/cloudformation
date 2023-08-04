@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: infra resource
+
+Parameters:
+  CodeCommitRepository:
+    Type: String
+  DeployBucketName:
+    Type: String
+
+Resources:
+  Repository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref CodeCommitRepository
+      RepositoryDescription: !Sub 'CodeCommit Repository ${CodeCommitRepository}'
+  DeployBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DeployBucketName
+      AccessControl: Private
