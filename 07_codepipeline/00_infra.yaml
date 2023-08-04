@@ -6,6 +6,8 @@ Parameters:
     Type: String
   DeployBucketName:
     Type: String
+  ResourceBucketName:
+    Type: String
 
 Resources:
   Repository:
@@ -17,4 +19,9 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref DeployBucketName
+      AccessControl: Private
+  ResourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ResourceBucketName
       AccessControl: Private
