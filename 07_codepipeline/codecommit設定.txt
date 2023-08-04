@@ -11,7 +11,7 @@ Default output format [None]: json
 3. ~/.awsフォルダ内に「config」「credentials」の２ファイルができていることを確認する。
 （※windowsの場合は各ユーザのフォルダ配下に.awsフォルダがある）
 
-4.「config」を編集する（vi configなど）。末尾に下記を追加する。
+4.「config」を編集する
 [profile aws-soe-dev]
 region = ap-northeast-1
 output = json
