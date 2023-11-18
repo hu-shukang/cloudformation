@@ -1,0 +1,38 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-version:
+      nodejs: 18
+    commands:
+      - echo Install Started `date`
+      - npm ci
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR
+      - aws --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin ${ECR_REPOSITORY_URI}
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo "IMAGE_TAG:${IMAGE_TAG}"
+  build:
+    commands:
+      - echo Build started `date`
+      - echo Building the Docker image...
+      - |
+        docker build -t ${ECR_REPOSITORY_URI}:latest .
+        docker tag ${ECR_REPOSITORY_URI}:latest ${ECR_REPOSITORY_URI}:${IMAGE_TAG}
+        docker image ls
+      - cd ${CODEBUILD_SRC_DIR}
+      - mkdir ./artifact
+      - |
+        echo "Create Template Started `date`"
+        node_modules/.bin/cdk synth fargate-demo-api-${ENV} --require-approval never -c imageTag=${IMAGE_TAG} -c env=${ENV} > ./artifact/${TEMPLATE_FILENAME}
+        echo "cdk synth completed `date`"
+  post_build:
+    commands:
+      - echo "Build completed `date`"
+      - docker push ${ECR_REPOSITORY_URI}:${IMAGE_TAG}
+artifacts:
+  files:
+    - ${TEMPLATE_FILENAME}
+  base-directory: artifact

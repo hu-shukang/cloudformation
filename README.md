@@ -7,3 +7,6 @@
 | 03 | 03_mysql-lambda | CDK + Lambda + VPC + RDS |
 | 04 | 04_book-api | Cloudformation + SpringBoot + Fargate |
 | 05 | 05_employee-manager-api | Cloudformation + Lambda + DynamoDB |
+| 06 | 06_attendance | Cloudformation + SpringBoot + Fargate |
+| 07 | 07_codepipeline | Cloudformation + Codepipeline |
+| 08 | 08_cdk-fargate-demo | CDK + Nodejs + Fargate |
