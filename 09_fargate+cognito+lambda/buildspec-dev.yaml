@@ -1,0 +1,50 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-version:
+      nodejs: 18
+    commands:
+      - echo Install Started `date`
+      - cd ${CODEBUILD_SRC_DIR}/lambda/layers/common-layer/nodejs
+      - npm ci
+      - cd ${CODEBUILD_SRC_DIR}/lambda
+      - npm ci
+      - cd ${CODEBUILD_SRC_DIR}
+      - npm ci
+  pre_build:
+    commands:
+      - cd ${CODEBUILD_SRC_DIR}/lambda
+      - npm run build
+      - cd ${CODEBUILD_SRC_DIR}
+      # - npm run lint
+      # - npm run test
+      - echo Logging in to Amazon ECR
+      - aws --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin ${ECR_REPOSITORY_URI}
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo "IMAGE_TAG:${IMAGE_TAG}"
+  build:
+    commands:
+      - echo Build started `date`
+      - echo Building the Docker image...
+      - |
+        docker build -t ${ECR_REPOSITORY_URI}:latest .
+        docker tag ${ECR_REPOSITORY_URI}:latest ${ECR_REPOSITORY_URI}:${IMAGE_TAG}
+        docker image ls
+      - cd ${CODEBUILD_SRC_DIR}
+      - |
+        echo "Create Template Started `date`"
+        node_modules/.bin/cdk synth ${API_NAME}-api-${ENV} --quiet --require-approval never -c imageTag=${IMAGE_TAG} -c env=${ENV}
+        echo "cdk synth completed `date`"
+      - ls -l ${CODEBUILD_SRC_DIR}/cdk.out
+      - bash upload_assets.sh
+      - cd ${CODEBUILD_SRC_DIR}
+  post_build:
+    commands:
+      - echo "Build completed `date`"
+      - docker push ${ECR_REPOSITORY_URI}:${IMAGE_TAG}
+artifacts:
+  files:
+    - '${API_NAME}-api-${ENV}.template.json'
+  base-directory: cdk.out

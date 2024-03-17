@@ -1,0 +1,39 @@
+@hostname = localhost
+@port = 3000
+@host = {{hostname}}:{{port}}
+@contentType = application/json
+
+### get user detail
+GET http://{{host}}/api/user/3c5e677c-b684-465f-b44b-7fca07dfb0dd HTTP/1.1
+
+### add user
+POST http://{{host}}/api/user HTTP/1.1
+content-type: application/json
+
+{
+  "sub": "922dbfe7-ede6-4875-84ec-f28a22d0caa4",
+  "name": "name3",
+  "phone": "0123456789",
+  "email": "user@example.com",
+  "role": "1"
+}
+
+### update user
+PUT http://{{host}}/api/user/922dbfe7-ede6-4875-84ec-f28a22d0caa4 HTTP/1.1
+content-type: application/json
+
+{
+  "name": "name3",
+  "phone": "0123456789",
+  "email": "user@example.com",
+  "role": "1"
+}
+
+### query user
+GET http://{{host}}/api/user?phone=1234546789 HTTP/1.1
+
+
+### delete user
+DELETE  http://{{host}}/api/user/3c5e677c-b684-465f-b44b-7fca07dfb0dd HTTP/1.1
+
+
