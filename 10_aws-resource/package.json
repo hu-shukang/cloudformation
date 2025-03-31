@@ -10,6 +10,7 @@
     "test": "jest",
     "cdk:destroy:all": "cdk destroy --all --profile admin",
     "cdk:deploy:all": "cdk deploy --all --profile admin",
+    "cdk:deploy:amplify-ssr-logging-role": "cdk deploy AmplifySSRLoggingRoleStack --profile admin",
     "cdk:deploy:codepipeline-role": "cdk deploy CodePipelineRoleStack --profile admin",
     "cdk:deploy:lambda-access-role": "cdk deploy LambdaAccessRoleStack --profile admin",
     "cdk:deploy:ecs-task-role": "cdk deploy ECSTaskRoleStack --profile admin",

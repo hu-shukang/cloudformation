@@ -24,6 +24,7 @@ export class DevAccessRoleStack extends cdk.Stack {
             'budgets:ModifyBudget',
             'dynamodb:*',
             'rds:*',
+            'cloudfront:*'
           ],
           resources: ['*'],
         }),
@@ -47,6 +48,9 @@ export class DevAccessRoleStack extends cdk.Stack {
             's3:PutObject',
             's3:List*',
             's3:DeleteObject',
+            's3:CreateBucket',
+            's3:DeleteBucket',
+            's3:ListBucket',
           ],
           resources: ['*'],
         }),

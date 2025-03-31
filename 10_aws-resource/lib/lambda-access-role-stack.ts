@@ -72,6 +72,26 @@ export class LambdaAccessRoleStack extends cdk.Stack {
           actions: ['iam:PassRole'],
           resources: ['*'],
         }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ['execute-api:*'],
+          resources: ['*'],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ['ecr:*'],
+          resources: ['*'],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes",
+            "sqs:ChangeMessageVisibility"
+          ],
+          resources: ['*'],
+        }),
       ],
     });
 

@@ -12,6 +12,7 @@ import { RepositoryStack } from '../lib/repository-stack';
 import { VPCStack } from '../lib/vpc-stack';
 import { EventBridgeForCodePipelineRoleStack } from '../lib/event-bridge-for-code-pipeline-role-stack';
 import { Context, context } from './context';
+import { AmplifySSRLoggingRoleStack } from '../lib/amplify-ssr-logging-role-stack';
 
 declare module 'aws-cdk-lib' {
   interface Environment extends Context {}
@@ -19,7 +20,7 @@ declare module 'aws-cdk-lib' {
 
 const app = new cdk.App({
   defaultStackSynthesizer: new cdk.CliCredentialsStackSynthesizer({
-    fileAssetsBucketName: '', // CDK資源用のS3 Bucket
+    fileAssetsBucketName: 'hsk-cdk', // CDK資源用のS3 Bucket
     bucketPrefix: 'aws-resource',
     qualifier: 'aws-resource',
   }),
@@ -36,6 +37,7 @@ new ECSTaskRoleStack(app, 'ECSTaskRoleStack', props);
 new ECSTaskExecutionRole(app, 'ECSTaskExecutionRole', props);
 new DevAccessRoleStack(app, 'DevAccessRoleStack', props);
 new EventBridgeForCodePipelineRoleStack(app, 'EventBridgeForCodePipelineRoleStack', props);
+new AmplifySSRLoggingRoleStack(app, 'AmplifySSRLoggingRoleStack', props);
 
 // user group
 new DevUserGroupStack(app, 'DevUserGroupStack', props);

@@ -13,28 +13,7 @@ export class CodePipelineRoleStack extends cdk.Stack {
       statements: [
         new iam.PolicyStatement({
           actions: [
-            's3:PutObject',
-            's3:PutObjectAcl',
-            's3:GetObject',
-            's3:GetObjectVersion',
-            's3:GetBucketVersioning',
-            's3:ListBucket',
-            's3:DeleteObject',
-            's3:ListBucketMultipartUploads',
-            's3:PutBucketNotification',
-            's3:GetBucketNotification',
-          ],
-          resources: [
-            'arn:aws:s3:::*deploy*',
-            'arn:aws:s3:::*deploy*/*',
-            'arn:aws:s3:::*work*',
-            'arn:aws:s3:::*work*/*',
-            'arn:aws:s3:::*web*',
-            'arn:aws:s3:::*web*/*',
-          ],
-        }),
-        new iam.PolicyStatement({
-          actions: [
+            's3:*',
             'ses:*',
             'ec2:*',
             'sns:Publish',
@@ -45,6 +24,8 @@ export class CodePipelineRoleStack extends cdk.Stack {
             'secretsmanager:GetRandomPassword',
             'secretsmanager:ListSecrets',
             'iam:PassRole',
+            'cloudfront:*',
+            'cognito-idp:*'
           ],
           resources: ['*'],
         }),
@@ -378,31 +359,6 @@ export class CodePipelineRoleStack extends cdk.Stack {
         }),
         new iam.PolicyStatement({
           actions: ['elasticloadbalancing:DescribeTargetGroupAttributes', 'elasticloadbalancing:DescribeTargetHealth'],
-          resources: ['*'],
-        }),
-        new iam.PolicyStatement({
-          actions: [
-            'cognito-idp:UpdateUserPoolDomain',
-            'cognito-idp:DeleteUserPool',
-            'cognito-idp:DeleteUserPoolClient',
-            'cognito-idp:UpdateUserPoolClient',
-            'cognito-idp:GetUserPoolMfaConfig',
-            'cognito-idp:DeleteUserPoolDomain',
-            'cognito-idp:ListUserPoolClients',
-            'cognito-idp:DescribeUserPool',
-            'cognito-idp:CreateUserPoolDomain',
-            'cognito-idp:CreateUserPoolClient',
-            'cognito-idp:SetUserPoolMfaConfig',
-            'cognito-idp:UpdateUserPool',
-            'cognito-idp:DescribeUserPoolClient',
-            'cognito-idp:TagResource',
-            'cognito-idp:UntagResource',
-            'cognito-idp:ListTagsForResource',
-          ],
-          resources: [`arn:aws:cognito-idp:${region}:${account}:userpool/*`],
-        }),
-        new iam.PolicyStatement({
-          actions: ['cognito-idp:DescribeUserPoolDomain', 'cognito-idp:CreateUserPool', 'cognito-idp:ListUserPools'],
           resources: ['*'],
         }),
       ],
